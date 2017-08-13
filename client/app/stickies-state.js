@@ -16,13 +16,54 @@ const DB_URI = 'http://localhost:6160/stickies';
 class StickiesState {
 	constructor() {
 		this.stickies = null;
+		this.loop = this.loop.bind(this);
+	}
+
+	loop() {
+		(async (self) => {
+			let { stickies } = self;
+			const { result: servedStickies } = await rp({ uri: DB_URI, json: true });
+			const patches = jsonpatch.compare(stickies.toJS(), servedStickies);
+			const { length } = patches;
+
+			for (let i = 0; i < length; i += 1) {
+				const { op, path: strpath, value } = patches[i];
+				if (op === 'add') {
+					const [strindex] = _.split(strpath.substring(1), '/');
+					const index = _.parseInt(strindex);
+					const sticky = new StickyModel(value);
+					stickies = stickies.set(index, sticky);
+					self.createWindow(sticky);
+				} else if (op === 'replace') {
+					const [strindex, key] = _.split(strpath.substring(1), '/');
+					const index = _.parseInt(strindex);
+					const { updatedAt, _id } = servedStickies[index];
+					const sticky = stickies.get(index);
+
+					if (updatedAt < sticky.get('updatedAt')) {
+						await rp({ uri: `${DB_URI}/${_id}}`, json: true, method: 'PATCH', body: { [key]: sticky.get('key') } });
+					} else {
+						stickies = stickies.setIn([index, key], value);
+						_.some(BrowserWindow.getAllWindows(), (a) => {
+							if (a.__stickyId__ == _id) {
+								a.webContents.send('sticky:update-from-server', { [key]: value });
+								return true;
+							}
+							return false;
+						});
+					}
+				}
+			}
+
+			this.stickies = stickies;
+		})(this).catch(console.error).then(setTimeout(this.loop, 1000));
 	}
 
 	init() {
 		let stickies = !fs.existsSync(PATH) ? [] : JSON.parse(fs.readFileSync(PATH, 'utf-8'));
 		(async () => {
-			const { result: serverStickies } = await rp({ uri: DB_URI, json: true });
-			const patches = jsonpatch.compare(serverStickies, stickies);
+			const { result: servedStickies } = await rp({ uri: DB_URI, json: true });
+			const patches = jsonpatch.compare(servedStickies, stickies);
 			const { length } = patches;
 			for (let i = 0; i < length; i += 1) {
 				const { op, path: strpath, value } = patches[i];
@@ -32,7 +73,7 @@ class StickiesState {
 					const [strindex, key] = _.split(strpath.substring(1), '/');
 					const index = _.parseInt(strindex);
 					const { updatedAt, _id, deleted } = stickies[index];
-					const served = serverStickies[index];
+					const served = servedStickies[index];
 
 					if (served.updatedAt < updatedAt && !deleted) {
 						await rp({ uri: `${DB_URI}/${_id}`, json: true, method: 'PATCH', body: { [key]: value } });
@@ -42,7 +83,7 @@ class StickiesState {
 				} else if (op === 'remove') {
 					const [strindex] = _.split(strpath.substring(1), '/');
 					const index = _.parseInt(strindex);
-					const served = serverStickies[index];
+					const served = servedStickies[index];
 					if (!served.deleted) {
 						stickies[index] = served;
 					}
@@ -61,6 +102,7 @@ class StickiesState {
 					return sticky;
 				})
 			);
+			this.loop();
 		});
 	}
 
