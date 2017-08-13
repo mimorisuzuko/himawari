@@ -27,11 +27,18 @@ class StickiesState {
 			for (let i = 0; i < length; i += 1) {
 				const { op, path: strpath, value } = patches[i];
 				if (op === 'add') {
-					await rp({ uri: DB_URI, json: true, method: 'POST', body: value });
+					socket.emit('post:stickies', value);
 				} else if (op === 'replace') {
 					const [strindex, key] = _.split(strpath.substring(1), '/');
-					const { _id } = stickies[_.parseInt(strindex)];
-					await rp({ uri: `${DB_URI}/${_id}`, json: true, method: 'PATCH', body: { [key]: value } });
+					const index = _.parseInt(strindex);
+					const { updatedAt, _id } = stickies[index];
+					const served = serverStickies[index];
+
+					if (served.updatedAt < updatedAt) {
+						socket.emit('patch:stickies', { _id, query: { [key]: value } });
+					} else {
+						stickies[index][key] = served[key];
+					}
 				} else if (op === 'remove') {
 					const [strindex] = _.split(strpath.substring(1), '/');
 					const index = _.parseInt(strindex);
