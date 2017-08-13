@@ -21,10 +21,8 @@ class StickiesState {
 	init() {
 		(async () => {
 			const stickies = !fs.existsSync(PATH) ? [] : JSON.parse(fs.readFileSync(PATH, 'utf-8'));
-			const patches = jsonpatch.compare((
-				await rp({ uri: DB_URI, json: true })).result,
-				stickies
-			);
+			const { result: serverStickies } = await rp({ uri: DB_URI, json: true });
+			const patches = jsonpatch.compare(serverStickies, stickies);
 			const { length } = patches;
 			for (let i = 0; i < length; i += 1) {
 				const { op, path: strpath, value } = patches[i];
@@ -34,6 +32,10 @@ class StickiesState {
 					const [strindex, key] = _.split(strpath.substring(1), '/');
 					const { _id } = stickies[_.parseInt(strindex)];
 					await rp({ uri: `${DB_URI}/${_id}`, json: true, method: 'PATCH', body: { [key]: value } });
+				} else if (op === 'remove') {
+					const [strindex] = _.split(strpath.substring(1), '/');
+					const index = _.parseInt(strindex);
+					stickies[index] = serverStickies[index];
 				}
 			}
 			fs.writeFileSync(PATH, JSON.stringify(stickies));
