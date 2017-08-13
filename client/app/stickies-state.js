@@ -19,32 +19,38 @@ class StickiesState {
 	}
 
 	init() {
+		let stickies = !fs.existsSync(PATH) ? [] : JSON.parse(fs.readFileSync(PATH, 'utf-8'));
 		(async () => {
-			const stickies = !fs.existsSync(PATH) ? [] : JSON.parse(fs.readFileSync(PATH, 'utf-8'));
 			const { result: serverStickies } = await rp({ uri: DB_URI, json: true });
 			const patches = jsonpatch.compare(serverStickies, stickies);
 			const { length } = patches;
 			for (let i = 0; i < length; i += 1) {
 				const { op, path: strpath, value } = patches[i];
-				if (op === 'add') {
-					socket.emit('post:stickies', value);
+				if (op === 'add' && !value.deleted) {
+					await rp({ uri: DB_URI, json: true, method: 'POST', body: value });
 				} else if (op === 'replace') {
 					const [strindex, key] = _.split(strpath.substring(1), '/');
 					const index = _.parseInt(strindex);
-					const { updatedAt, _id } = stickies[index];
+					const { updatedAt, _id, deleted } = stickies[index];
 					const served = serverStickies[index];
 
-					if (served.updatedAt < updatedAt) {
-						socket.emit('patch:stickies', { _id, query: { [key]: value } });
-					} else {
+					if (served.updatedAt < updatedAt && !deleted) {
+						await rp({ uri: `${DB_URI}/${_id}`, json: true, method: 'PATCH', body: { [key]: value } });
+					} else if (!served.deleted) {
 						stickies[index][key] = served[key];
 					}
 				} else if (op === 'remove') {
 					const [strindex] = _.split(strpath.substring(1), '/');
 					const index = _.parseInt(strindex);
-					stickies[index] = serverStickies[index];
+					const served = serverStickies[index];
+					if (!served.deleted) {
+						stickies[index] = served;
+					}
 				}
 			}
+
+			stickies = (await rp({ uri: `${DB_URI}?optimize`, json: true })).result;
+		})().catch(console.error).then(() => {
 			fs.writeFileSync(PATH, JSON.stringify(stickies));
 			this.stickies = List(
 				stickies.map((a) => {
@@ -55,7 +61,7 @@ class StickiesState {
 					return sticky;
 				})
 			);
-		})().catch(console.error);
+		});
 	}
 
 	save() {

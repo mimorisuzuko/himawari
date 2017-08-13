@@ -19,9 +19,12 @@ const StickyModel = mongoose.model('Sticky', StickySchema);
 
 mongoose.connect('mongodb://localhost/himawari', { useMongoClient: true });
 
-
 module.exports = {
 	findStickies: (query) => StickyModel.find(query),
 	addSticky: (options) => (new StickyModel(options)).save(),
-	updateSticky: (_id, query) => StickyModel.findOneAndUpdate({ _id }, { $set: query }, { new: true })
+	updateSticky: (_id, query) => StickyModel.findOneAndUpdate({ _id }, { $set: query }, { new: true }),
+	optimize: async () => {
+		await StickyModel.remove({ deleted: true });
+		return StickyModel.find();
+	}
 };

@@ -14,19 +14,26 @@ app.use(bodyParser.json());
 app.use(cors());
 app.use('/', express.static(libpath.join(__dirname, '../docs')));
 
-app.get('/stickies', (req, res) => {
-	const query = {};
+app.get('/stickies', ({ query: prev }, res) => {
+	if (_.has(prev, 'optimize')) {
+		db.optimize().then((result) => res.json({ result })).catch((err) => {
+			console.error(err);
+			res.sendStatus(500);
+		});
+	} else {
+		const query = {};
 
-	_.forEach(_.toPairs(req.query), ([k, v]) => {
-		if (k === 'deleted') {
-			query[k] = JSON.parse(v);
-		}
-	});
+		_.forEach(_.toPairs(prev), ([k, v]) => {
+			if (k === 'deleted') {
+				query[k] = JSON.parse(v);
+			}
+		});
 
-	db.findStickies(query).then((result) => res.json({ result })).catch((err) => {
-		console.error(err);
-		res.sendStatus(500);
-	});
+		db.findStickies(query).then((result) => res.json({ result })).catch((err) => {
+			console.error(err);
+			res.sendStatus(500);
+		});
+	}
 });
 
 app.post('/stickies', (req, res) => {
