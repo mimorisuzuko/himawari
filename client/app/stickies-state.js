@@ -5,26 +5,47 @@ const os = require('os');
 const fs = require('fs');
 const _ = require('lodash');
 const { BrowserWindow } = require('electron');
+const rp = require('request-promise');
+const jsonpatch = require('fast-json-patch');
+const qs = require('querystring');
 
 const PATH = libpath.join(os.homedir(), '.himawari.json');
+const DB_URI = 'http://localhost:6160/stickies';
 
 class StickiesState {
 	constructor() {
-		if (!fs.existsSync(PATH)) {
-			fs.writeFileSync(PATH, '[]');
-		}
-
-		let stickies = List(_.map(JSON.parse(fs.readFileSync(PATH, 'utf-8')), (a) => new StickyModel(a)));
-
-		if (stickies.size === 0) {
-			stickies = stickies.push(new StickyModel());
-		}
-
-		this.stickies = stickies;
+		this.stickies = null;
 	}
 
 	init() {
-		this.stickies.map((sticky) => this.createWindow(sticky));
+		(async () => {
+			const stickies = !fs.existsSync(PATH) ? [] : JSON.parse(fs.readFileSync(PATH, 'utf-8'));
+			const patches = jsonpatch.compare((
+				await rp({ uri: DB_URI, json: true })).result,
+				stickies
+			);
+			const { length } = patches;
+			for (let i = 0; i < length; i += 1) {
+				const { op, path: strpath, value } = patches[i];
+				if (op === 'add') {
+					await rp({ uri: DB_URI, json: true, method: 'POST', body: value });
+				} else if (op === 'replace') {
+					const [strindex, key] = _.split(strpath.substring(1), '/');
+					const { _id } = stickies[_.parseInt(strindex)];
+					await rp({ uri: `${DB_URI}/${_id}`, json: true, method: 'PATCH', body: { [key]: value } });
+				}
+			}
+			fs.writeFileSync(PATH, JSON.stringify(stickies));
+			this.stickies = List(
+				stickies.map((a) => {
+					const sticky = new StickyModel(a);
+					if (!sticky.get('deleted')) {
+						this.createWindow(sticky);
+					}
+					return sticky;
+				})
+			);
+		})().catch(console.error);
 	}
 
 	save() {
@@ -32,26 +53,16 @@ class StickiesState {
 	}
 
 	/**
-	 * @param {string} id
+	 * @param {string} _id
 	 * @param {{}} query
 	 */
-	update(id, query) {
+	update(_id, query) {
 		const { stickies } = this;
-
+		
 		this.stickies = stickies.update(
-			stickies.findIndex((a) => a.get('id') === id),
+			stickies.findIndex((a) => a.get('_id') === _id),
 			(sticky) => sticky.merge(query)
 		);
-		this.save();
-	}
-
-	/**
-	 * @param {string} id
-	 */
-	remove(id) {
-		const { stickies } = this;
-
-		this.stickies = stickies.filter((a) => a.get('id') !== id);
 		this.save();
 	}
 
@@ -68,10 +79,10 @@ class StickiesState {
 	 */
 	createWindow(sticky) {
 		const w = new BrowserWindow(sticky.toWindowOptions());
-		const id = sticky.get('id');
+		const _id = sticky.get('_id');
 
-		w.__stickyId__ = id;
-		w.loadURL(`file://${libpath.join(__dirname, `dst/index.html?id=${id}`)}`);
+		w.__stickyId__ = _id;
+		w.loadURL(`file://${libpath.join(__dirname, `dst/index.html?${qs.stringify({ _id })}`)}`);
 		w.on('move', (e) => {
 			const { sender } = e;
 			const [x, y] = sender.getPosition();
@@ -82,13 +93,9 @@ class StickiesState {
 			const [width, height] = sender.getSize();
 			this.update(sender.__stickyId__, { width, height });
 		});
-		w.on('close', (e) => {
-			const { sender } = e;
-			this.update(sender.__stickyId__);
-		});
 	}
 
-	toJS(){
+	toJS() {
 		return this.stickies.toJS();
 	}
 }

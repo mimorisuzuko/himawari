@@ -3,18 +3,18 @@ const _ = require('lodash');
 
 const gen = () => `sticky${Date.now()}`;
 
-class StickyModel extends Record({ id: gen(), value: '', width: 300, height: 250, x: 0, y: 0, alwaysOnTop: false }) {
+class StickyModel extends Record({ _id: gen(), value: '', width: 300, height: 250, x: 0, y: 0, alwaysOnTop: false, deleted: false }) {
 	constructor(...args) {
 		super(...args);
 
 		return this.merge({
-			id: gen()
+			_id: gen()
 		});
 	}
 
 	toWindowOptions() {
 		const options = this.toJS();
-		_.forEach(['id', 'value'], (a) => delete options[a]);
+		_.forEach(['_id', 'value', 'deleted'], (a) => delete options[a]);
 
 		return _.merge(options, {
 			frame: false,

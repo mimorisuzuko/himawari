@@ -1,0 +1,19 @@
+{
+	"name": "himawari-server",
+	"version": "0.0.1",
+	"description": "himawari",
+	"main": "server.js",
+	"scripts": {
+		"server": "node server.js"
+	},
+	"keywords": [],
+	"author": "Hiroki Usuba <hrky0206@gmail.com> (http://mimorisuzuko.github.io/)",
+	"license": "MIT",
+	"dependencies": {
+		"body-parser": "^1.17.2",
+		"express": "^4.15.4",
+		"mongoose": "^4.11.6",
+		"morgan": "^1.8.2"
+	},
+	"devDependencies": {}
+}

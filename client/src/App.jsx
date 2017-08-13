@@ -8,8 +8,8 @@ import StarOutline from 'react-icons/lib/md/star-outline';
 import Star from 'react-icons/lib/md/star';
 import './App.scss';
 
-const { id } = qs.parse(location.search.substring(1));
-const sticky = _.find(ipcRenderer.sendSync('sticky:all'), (a) => a.id === id);
+const { _id } = qs.parse(location.search.substring(1));
+const sticky = _.find(ipcRenderer.sendSync('sticky:all'), (a) => a._id === _id);
 
 class App extends Component {
 	constructor() {
@@ -38,7 +38,7 @@ class App extends Component {
 
 	@autobind
 	onClickClose() {
-		close();
+		ipcRenderer.send('sticky:close', { _id });
 	}
 
 	/**
@@ -48,7 +48,7 @@ class App extends Component {
 	onChange(e) {
 		const { currentTarget: { value } } = e;
 		this.setState({ value });
-		ipcRenderer.send('sticky:value', { id, value });
+		ipcRenderer.send('sticky:value', { _id, value });
 	}
 
 	@autobind
@@ -56,7 +56,7 @@ class App extends Component {
 		const { state: { alwaysOnTop } } = this;
 		const next = !alwaysOnTop;
 		this.setState({ alwaysOnTop: next });
-		ipcRenderer.send('sticky:alwaysOnTop', { id, alwaysOnTop: next });
+		ipcRenderer.send('sticky:alwaysOnTop', { _id, alwaysOnTop: next });
 	}
 }
 
