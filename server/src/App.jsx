@@ -75,7 +75,7 @@ class App extends Component {
 			<div styleName='base'>
 				<header>
 					<div styleName='logo'>
-						Himawri
+						Himawari
 					</div>
 					<div onClick={this.onClickAdd}>
 						<Add />
