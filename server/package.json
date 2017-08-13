@@ -4,7 +4,7 @@
 	"description": "himawari",
 	"main": "server/index.js",
 	"scripts": {
-		"server": "node server/index.js",
+		"start": "node server/index.js",
 		"webpack": "./node_modules/.bin/webpack --config webpack.config.babel.js",
 		"build": "npm-run-all build:*",
 		"build:pug": "./node_modules/.bin/pug --hierarchy -o docs/ src/",
