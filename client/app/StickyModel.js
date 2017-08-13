@@ -4,12 +4,8 @@ const _ = require('lodash');
 const gen = () => `sticky${Date.now()}`;
 
 class StickyModel extends Record({ _id: gen(), value: '', width: 300, height: 250, x: 0, y: 0, alwaysOnTop: false, deleted: false }) {
-	constructor(...args) {
-		super(...args);
-
-		return this.merge({
-			_id: gen()
-		});
+	constructor(args) {
+		super(_.merge({ _id: gen() }, args));
 	}
 
 	toWindowOptions() {

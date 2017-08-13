@@ -3,6 +3,7 @@ const app = express();
 const db = require('./db');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
+const io = require('socket.io').listen(app.listen(6160));
 
 app.use(morgan('dev'));
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -22,12 +23,19 @@ app.post('/stickies', (req, res) => {
 	});
 });
 
-app.patch('/stickies/:id', (req, res) => {
-	const { params: { id }, body } = req;
-	db.updateSticky(id, body).then((result) => res.json({ result })).catch((err) => {
+app.patch('/stickies/:_id', (req, res) => {
+	const { params: { _id }, body } = req;
+	db.updateSticky(_id, body).then((result) => res.json({ result })).catch((err) => {
 		console.error(err);
 		res.sendStatus(500);
 	});
 });
 
-app.listen(6160);
+io.on('connection', (socket) => {
+	socket.on('patch:stickies', ({ _id, query }) => {
+		db.updateSticky(_id, query).catch(console.error);
+	});
+	socket.on('post:stickies', (query) => {
+		db.addSticky(query).catch(console.error);
+	});
+});

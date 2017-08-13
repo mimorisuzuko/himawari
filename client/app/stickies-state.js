@@ -8,6 +8,7 @@ const { BrowserWindow } = require('electron');
 const rp = require('request-promise');
 const jsonpatch = require('fast-json-patch');
 const qs = require('querystring');
+const socket = require('socket.io-client')('http://localhost:6160');
 
 const PATH = libpath.join(os.homedir(), '.himawari.json');
 const DB_URI = 'http://localhost:6160/stickies';
@@ -57,8 +58,9 @@ class StickiesState {
 	 * @param {{}} query
 	 */
 	update(_id, query) {
+		socket.emit('patch:stickies', { _id, query });
 		const { stickies } = this;
-		
+
 		this.stickies = stickies.update(
 			stickies.findIndex((a) => a.get('_id') === _id),
 			(sticky) => sticky.merge(query)
@@ -69,6 +71,7 @@ class StickiesState {
 	add() {
 		const { stickies } = this;
 		const sticky = new StickyModel();
+		socket.emit('post:stickies', sticky.toJS());
 		this.stickies = stickies.push(sticky);
 		this.createWindow(sticky);
 		this.save();

@@ -22,5 +22,5 @@ mongoose.connect('mongodb://localhost/himawari', { useMongoClient: true });
 module.exports = {
 	findStickies: () => StickyModel.find({}),
 	addSticky: (options) => (new StickyModel(options)).save(),
-	updateSticky: (_id, query) => StickyModel.update({ _id }, { $set: query })
+	updateSticky: (_id, query) => StickyModel.findOneAndUpdate({ _id }, { $set: query }, { new: true })
 };
