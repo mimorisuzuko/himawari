@@ -95,12 +95,13 @@ class App extends Component {
 	@autobind
 	onChange(_id, value) {
 		const { state: { stickies } } = this;
+		const updatedAt = Date.now();
 
-		socket.emit('patch:stickies', { _id, query: { value } });
+		socket.emit('patch:stickies', { _id, query: { value, updatedAt } });
 		this.setState({
 			stickies: stickies.update(
 				stickies.findIndex((a) => a.get('_id') === _id),
-				(sticky) => sticky.set('value', value)
+				(sticky) => sticky.merge({ updatedAt, value })
 			)
 		});
 	}
@@ -111,8 +112,9 @@ class App extends Component {
 	@autobind
 	onClickDelete(_id) {
 		const { state: { stickies } } = this;
+		const updatedAt = Date.now();
 
-		socket.emit('patch:stickies', { _id, query: { deleted: true } });
+		socket.emit('patch:stickies', { _id, query: { deleted: true, updatedAt } });
 		this.setState({
 			stickies: stickies.filter((a) => a.get('_id') !== _id)
 		});

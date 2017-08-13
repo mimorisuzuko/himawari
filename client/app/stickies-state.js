@@ -60,6 +60,7 @@ class StickiesState {
 	 * @param {{}} query
 	 */
 	update(_id, query) {
+		query.updatedAt = Date.now();
 		socket.emit('patch:stickies', { _id, query });
 		const { stickies } = this;
 
@@ -72,7 +73,7 @@ class StickiesState {
 
 	add() {
 		const { stickies } = this;
-		const sticky = new StickyModel();
+		const sticky = new StickyModel({ updatedAt: Date.now() });
 		socket.emit('post:stickies', sticky.toJS());
 		this.stickies = stickies.push(sticky);
 		this.createWindow(sticky);

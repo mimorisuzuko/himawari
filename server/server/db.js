@@ -12,6 +12,7 @@ const StickySchema = new Schema({
 	alwaysOnTop: { type: Boolean, required: true },
 	deleted: { type: Boolean, required: true },
 	_id: { type: String, required: true },
+	updatedAt: { type: Number, required: true }
 }, { versionKey: false });
 
 const StickyModel = mongoose.model('Sticky', StickySchema);
